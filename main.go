@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
-	"time"
 )
 
 const (
@@ -75,6 +75,11 @@ func (h *ColorTextHandler) Handle(ctx context.Context, r slog.Record) error {
 	levelStr := h.setColorLevel(r.Level)
 	buf = fmt.Appendf(buf, "%-7s", levelStr)
 
+	// Message
+	msg := r.Message
+	msg = colorize(white, msg)
+	buf = fmt.Appendf(buf, " %s", msg)
+
 	// Source location
 	if h.opts.AddSource && r.PC != 0 {
 		fs := runtime.CallersFrames([]uintptr{r.PC})
@@ -87,16 +92,13 @@ func (h *ColorTextHandler) Handle(ctx context.Context, r slog.Record) error {
 		buf = fmt.Appendf(buf, " %s", source)
 	}
 
-	// Message
-	msg := r.Message
-	msg = colorize(white, msg)
-	buf = fmt.Appendf(buf, " %s", msg)
-
 	// Attributes
-	r.Attrs(func(a slog.Attr) bool {
-		buf = h.appendAttr(buf, a)
-		return true
-	})
+	if h.opts.Multiline {
+		buf = h.appendMultilineAttrs(buf, r)
+
+	} else {
+		buf = h.appendInLineAttrs(buf, r)
+	}
 
 	buf = append(buf, '\n')
 	h.mu.Lock()
@@ -105,7 +107,40 @@ func (h *ColorTextHandler) Handle(ctx context.Context, r slog.Record) error {
 	return err
 }
 
-func (h *ColorTextHandler) appendAttr(buf []byte, a slog.Attr) []byte {
+func (h *ColorTextHandler) appendMultilineAttrs(buf []byte, r slog.Record) []byte {
+	attrCount := 0
+	r.Attrs(func(a slog.Attr) bool {
+		attrCount++
+		return true
+	})
+
+	if attrCount == 0 {
+		return buf
+	}
+
+	buf = append(buf, '\n')
+
+	r.Attrs(func(a slog.Attr) bool {
+		buf = h.appendAttr(buf, a, true, 1)
+		return true
+	})
+
+	return buf
+}
+
+func (h *ColorTextHandler) appendInLineAttrs(buf []byte, r slog.Record) []byte {
+	r.Attrs(func(a slog.Attr) bool {
+		buf = h.appendAttr(buf, a, false, 0)
+		return true
+	})
+
+	return buf
+}
+
+func (h *ColorTextHandler) appendAttr(buf []byte, a slog.Attr, multiline bool, level int) []byte {
+	// Identation
+	indent := strings.Repeat(" ", 2*level)
+
 	a.Value = a.Value.Resolve()
 	if a.Equal(slog.Attr{}) {
 		return buf
@@ -121,37 +156,84 @@ func (h *ColorTextHandler) appendAttr(buf []byte, a slog.Attr) []byte {
 
 	switch a.Value.Kind() {
 	case slog.KindString:
-		buf = fmt.Appendf(buf, " %s=%s",
-			colorize(keyColor, a.Key),
-			colorize(valColor, fmt.Sprintf("%q", a.Value.String())))
+		val := a.Value.String()
+		if multiline {
+			buf = fmt.Appendf(buf, "%s%s: %s\n",
+				indent,
+				colorize(keyColor, a.Key),
+				colorize(valColor, val))
+		} else {
+			buf = fmt.Appendf(buf, " %s=%s",
+				colorize(keyColor, a.Key),
+				colorize(valColor, fmt.Sprintf("%q", val)))
+		}
 	case slog.KindTime:
-		buf = fmt.Appendf(buf, " %s=%s",
-			colorize(keyColor, a.Key),
-			colorize(valColor, fmt.Sprintf("%q", a.Value.Time().Format(h.opts.TimeFormat))))
+		val := a.Value.Time().Format(h.opts.TimeFormat)
+		if multiline {
+			buf = fmt.Appendf(buf, "%s%s: %s\n",
+				indent,
+				colorize(keyColor, a.Key),
+				colorize(valColor, val))
+		} else {
+			buf = fmt.Appendf(buf, " %s=%s",
+				colorize(keyColor, a.Key),
+				colorize(valColor, fmt.Sprintf("%q", val)))
+		}
 	case slog.KindInt64, slog.KindUint64, slog.KindFloat64, slog.KindBool:
-		buf = fmt.Appendf(buf, " %s=%s",
-			colorize(keyColor, a.Key),
-			colorize(valColor, a.Value.String()))
+		val := a.Value.String()
+		if multiline {
+			buf = fmt.Appendf(buf, "%s%s: %s\n",
+				indent,
+				colorize(keyColor, a.Key),
+				colorize(valColor, val))
+		} else {
+			buf = fmt.Appendf(buf, " %s=%s",
+				colorize(keyColor, a.Key),
+				colorize(valColor, val))
+		}
 	case slog.KindDuration:
-		buf = fmt.Appendf(buf, " %s=%s",
-			colorize(keyColor, a.Key),
-			colorize(valColor, a.Value.String()))
+		val := a.Value.String()
+		if multiline {
+			buf = fmt.Appendf(buf, "%s%s: %s\n",
+				indent,
+				colorize(keyColor, a.Key),
+				colorize(valColor, val))
+		} else {
+			buf = fmt.Appendf(buf, " %s=%s",
+				colorize(keyColor, a.Key),
+				colorize(valColor, val))
+		}
 	case slog.KindGroup:
 		attrs := a.Value.Group()
 		if len(attrs) == 0 {
 			return buf
 		}
 
-		if a.Key != "" {
+		// if a.Key != "" {
+		// 	buf = fmt.Appendf(buf, " %s:", colorize(keyColor, a.Key))
+		// }
+		if multiline {
+			buf = fmt.Appendf(buf, "%s%s:\n", indent, colorize(keyColor, a.Key))
+			for _, ga := range attrs {
+				buf = h.appendAttr(buf, ga, multiline, 2)
+			}
+		} else {
 			buf = fmt.Appendf(buf, " %s:", colorize(keyColor, a.Key))
-		}
-		for _, ga := range attrs {
-			buf = h.appendAttr(buf, ga)
+			for _, ga := range attrs {
+				buf = h.appendAttr(buf, ga, multiline, 2)
+			}
 		}
 	default:
-		buf = fmt.Appendf(buf, " %s=%s",
-			colorize(keyColor, a.Key),
-			colorize(valColor, a.Value.String()))
+		if multiline {
+			buf = fmt.Appendf(buf, "%s%s: %s\n",
+				indent,
+				colorize(keyColor, a.Key),
+				colorize(valColor, a.Value.String()))
+		} else {
+			buf = fmt.Appendf(buf, " %s=%s",
+				colorize(keyColor, a.Key),
+				colorize(valColor, a.Value.String()))
+		}
 	}
 
 	return buf
@@ -213,18 +295,27 @@ func main() {
 
 	// Exemplos de logs
 	slog.Info("Iniciando aplicação", "version", "1.0.0", "env", "development")
-	slog.Debug("Configuração carregada", "config", map[string]interface{}{
-		"timeout":  "30s",
-		"retries":  3,
-		"features": []string{"auth", "storage"},
-	})
-	slog.Warn("Atenção: modo de desenvolvimento ativado")
-
-	err := fmt.Errorf("erro de conexão")
-	slog.Error("Falha ao conectar ao banco de dados",
-		"error", err,
-		"attempt", 3,
-		"backoff", time.Second*2)
-
-	slog.Info("Encerrando aplicação", "uptime", time.Minute*5)
+	slog.Info("Evento com grupo",
+		"user", "bob",
+		slog.Group( // grupo aninhado
+			"details",
+			slog.Int("port", 8080),
+			slog.String("status", "inactive"),
+		),
+		"teste", "outro",
+	)
+	// slog.Debug("Configuração carregada", "config", map[string]interface{}{
+	// 	"timeout":  "30s",
+	// 	"retries":  3,
+	// 	"features": []string{"auth", "storage"},
+	// })
+	// slog.Warn("Atenção: modo de desenvolvimento ativado")
+	//
+	// err := fmt.Errorf("erro de conexão")
+	// slog.Error("Falha ao conectar ao banco de dados",
+	// 	"error", err,
+	// 	"attempt", 3,
+	// 	"backoff", time.Second*2)
+	//
+	// slog.Info("Encerrando aplicação", "uptime", time.Minute*5)
 }
