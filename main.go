@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"sync"
@@ -78,7 +79,8 @@ func (h *ColorTextHandler) Handle(ctx context.Context, r slog.Record) error {
 	if h.opts.AddSource && r.PC != 0 {
 		fs := runtime.CallersFrames([]uintptr{r.PC})
 		f, _ := fs.Next()
-		source := fmt.Sprintf("%s:%d", f.File, f.Line) // TODO: Retornar somente o nome do arquivo e a linha
+		file := filepath.Base(f.File)
+		source := fmt.Sprintf("source: %s:%d", file, f.Line)
 		if h.opts.Colorful {
 			source = colorize(darkGray, source)
 		}
