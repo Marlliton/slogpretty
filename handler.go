@@ -11,17 +11,23 @@ import (
 	"sync"
 )
 
-type SlogStylerHandler struct {
+type groupOrAttrs struct {
+	group string
+	attrs []slog.Attr
+}
+
+type SlogPretty struct {
 	opts Options
+	goas []groupOrAttrs
 	out  io.Writer
 	mu   *sync.Mutex
 }
 
-func (h *SlogStylerHandler) Enabled(ctx context.Context, level slog.Level) bool {
+func (h *SlogPretty) Enabled(ctx context.Context, level slog.Level) bool {
 	return level >= h.opts.Level.Level()
 }
 
-func (h *SlogStylerHandler) Handle(ctx context.Context, r slog.Record) error {
+func (h *SlogPretty) Handle(ctx context.Context, r slog.Record) error {
 	buf := make([]byte, 0, 1024)
 
 	// Timestamp
@@ -54,13 +60,22 @@ func (h *SlogStylerHandler) Handle(ctx context.Context, r slog.Record) error {
 		buf = fmt.Appendf(buf, " %s", source)
 	}
 
-	// Attributes
+	h.removeEmptyGroup(r)
 	if h.opts.Multiline {
+		buf = append(buf, '\n')
+		buf = h.appendMultilineGroupOrAttrs(buf, 1)
 		buf = h.appendMultilineAttrs(buf, r)
-
 	} else {
 		buf = h.appendInLineAttrs(buf, r)
 	}
+
+	// Attributes
+	// if h.opts.Multiline {
+	// 	buf = h.appendMultilineAttrs(buf, r)
+	//
+	// } else {
+	// 	buf = h.appendInLineAttrs(buf, r)
+	// }
 
 	buf = append(buf, '\n')
 	h.mu.Lock()
@@ -69,7 +84,7 @@ func (h *SlogStylerHandler) Handle(ctx context.Context, r slog.Record) error {
 	return err
 }
 
-func New(out io.Writer, opts *Options) *SlogStylerHandler {
+func New(out io.Writer, opts *Options) *SlogPretty {
 	if opts == nil {
 		opts = DefaultOptions()
 	}
@@ -77,7 +92,7 @@ func New(out io.Writer, opts *Options) *SlogStylerHandler {
 		opts.TimeFormat = DefaultTimeFormat
 	}
 
-	h := &SlogStylerHandler{
+	h := &SlogPretty{
 		out:  out,
 		mu:   &sync.Mutex{},
 		opts: *opts,
@@ -85,17 +100,53 @@ func New(out io.Writer, opts *Options) *SlogStylerHandler {
 	return h
 }
 
-func (h *SlogStylerHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	// Implementação simplificada - retorna o mesmo handler
-	return h
+func (h *SlogPretty) WithAttrs(attrs []slog.Attr) slog.Handler {
+	if len(attrs) == 0 {
+		return h
+	}
+	return h.withGroupOrAttrs(groupOrAttrs{attrs: attrs})
 }
 
-func (h *SlogStylerHandler) WithGroup(name string) slog.Handler {
-	// Implementação simplificada - retorna o mesmo handler
-	return h
+func (h *SlogPretty) WithGroup(name string) slog.Handler {
+	if name == "" {
+		return h
+	}
+	return h.withGroupOrAttrs(groupOrAttrs{group: name})
 }
 
-func (h *SlogStylerHandler) appendMultilineAttrs(buf []byte, r slog.Record) []byte {
+func (h *SlogPretty) withGroupOrAttrs(goa groupOrAttrs) *SlogPretty {
+	h2 := *h
+	h2.goas = make([]groupOrAttrs, len(h.goas)+1)
+	copy(h2.goas, h.goas)
+	h2.goas[len(h2.goas)-1] = goa
+
+	return &h2
+}
+
+func (h *SlogPretty) removeEmptyGroup(r slog.Record) {
+	if r.NumAttrs() == 0 {
+		for len(h.goas) > 0 && h.goas[len(h.goas)-1].group != "" {
+			h.goas = h.goas[:len(h.goas)-1]
+		}
+	}
+}
+
+func (h *SlogPretty) appendMultilineGroupOrAttrs(buf []byte, level int) []byte {
+	for _, goa := range h.goas {
+		if goa.group != "" {
+			buf = fmt.Appendf(buf, "%s%s:\n", strings.Repeat("  ", level), colorize(lightGreen, goa.group))
+			level++
+		} else {
+			for _, a := range goa.attrs {
+				buf = h.appendAttr(buf, a, true, level)
+			}
+		}
+	}
+
+	return buf
+}
+
+func (h *SlogPretty) appendMultilineAttrs(buf []byte, r slog.Record) []byte {
 	attrCount := 0
 	r.Attrs(func(a slog.Attr) bool {
 		attrCount++
@@ -116,7 +167,19 @@ func (h *SlogStylerHandler) appendMultilineAttrs(buf []byte, r slog.Record) []by
 	return buf
 }
 
-func (h *SlogStylerHandler) appendInLineAttrs(buf []byte, r slog.Record) []byte {
+func (h *SlogPretty) appendInLineAttrs(buf []byte, r slog.Record) []byte {
+	for _, goa := range h.goas {
+		if goa.group != "" {
+			if h.opts.Colorful {
+				buf = fmt.Appendf(buf, " %s:", colorize(cyan, goa.group))
+			} else {
+				buf = fmt.Appendf(buf, " %s:", goa.group)
+			}
+		}
+		for _, attr := range goa.attrs {
+			buf = h.appendAttr(buf, attr, false, 0)
+		}
+	}
 	r.Attrs(func(a slog.Attr) bool {
 		buf = h.appendAttr(buf, a, false, 0)
 		return true
@@ -125,7 +188,7 @@ func (h *SlogStylerHandler) appendInLineAttrs(buf []byte, r slog.Record) []byte 
 	return buf
 }
 
-func (h *SlogStylerHandler) appendAttr(buf []byte, a slog.Attr, multiline bool, level int) []byte {
+func (h *SlogPretty) appendAttr(buf []byte, a slog.Attr, multiline bool, level int) []byte {
 	// Identation
 	indent := strings.Repeat(" ", 2*level)
 
@@ -224,7 +287,7 @@ func (h *SlogStylerHandler) appendAttr(buf []byte, a slog.Attr, multiline bool, 
 	return buf
 }
 
-func (h *SlogStylerHandler) setColorLevel(level slog.Level) string {
+func (h *SlogPretty) setColorLevel(level slog.Level) string {
 	switch level {
 	case slog.LevelDebug:
 		return colorize(lightMagenta, "DEBUG")
