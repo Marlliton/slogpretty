@@ -10,7 +10,8 @@ import (
 func main() {
 	handler := slogpretty.New(os.Stdout, &slogpretty.Options{
 		Level:      slog.LevelDebug,
-		Colorful:   true,                         // Enable colors
+		Colorful:   true, // Enable colors
+		AddSource:  true,
 		Multiline:  true,                         // Pretty-print complex data
 		TimeFormat: slogpretty.DefaultTimeFormat, // Custom time format time.Kitchen
 	})
@@ -46,7 +47,7 @@ func main() {
 		WithGroup("data_table").
 		With("hash", "jhs134", "valid", false)
 
-	logger.Info("Ação do usuário", "action", "login", "teste", "testando",
+	logger.Warn("Ação do usuário", "action", "login", "teste", "testando",
 		slog.Group("location",
 			slog.String("country", "Brazil"),
 			slog.String("region", "SP"),

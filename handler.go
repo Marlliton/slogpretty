@@ -208,55 +208,40 @@ func (h *SlogPretty) appendAttr(buf []byte, a slog.Attr, multiline bool, level i
 		valColor = 0
 	}
 
+	appendbuf := func(buf []byte, keyColor, valColor int, key, val string) []byte {
+		if multiline {
+			buf = fmt.Appendf(buf, "%s%s: %s\n",
+				indent,
+				colorize(keyColor, key),
+				colorize(valColor, val))
+		} else {
+			buf = fmt.Appendf(buf, " %s=%s",
+				colorize(keyColor, key),
+				colorize(valColor, fmt.Sprintf("%q", val)))
+		}
+		return buf
+	}
+
 	switch a.Value.Kind() {
 	case slog.KindString:
 		val := a.Value.String()
-		if multiline {
-			buf = fmt.Appendf(buf, "%s%s: %s\n",
-				indent,
-				colorize(keyColor, a.Key),
-				colorize(valColor, val))
-		} else {
-			buf = fmt.Appendf(buf, " %s=%s",
-				colorize(keyColor, a.Key),
-				colorize(valColor, fmt.Sprintf("%q", val)))
-		}
+		buf = appendbuf(buf, keyColor, valColor, a.Key, val)
 	case slog.KindTime:
 		val := a.Value.Time().Format(h.opts.TimeFormat)
-		if multiline {
-			buf = fmt.Appendf(buf, "%s%s: %s\n",
-				indent,
-				colorize(keyColor, a.Key),
-				colorize(valColor, val))
-		} else {
-			buf = fmt.Appendf(buf, " %s=%s",
-				colorize(keyColor, a.Key),
-				colorize(valColor, fmt.Sprintf("%q", val)))
-		}
-	case slog.KindInt64, slog.KindUint64, slog.KindFloat64, slog.KindBool:
+		buf = appendbuf(buf, keyColor, valColor, a.Key, val)
+	case slog.KindInt64, slog.KindUint64, slog.KindFloat64:
 		val := a.Value.String()
-		if multiline {
-			buf = fmt.Appendf(buf, "%s%s: %s\n",
-				indent,
-				colorize(keyColor, a.Key),
-				colorize(valColor, val))
-		} else {
-			buf = fmt.Appendf(buf, " %s=%s",
-				colorize(keyColor, a.Key),
-				colorize(valColor, val))
-		}
+		buf = appendbuf(buf, keyColor, valColor, a.Key, val)
 	case slog.KindDuration:
 		val := a.Value.String()
-		if multiline {
-			buf = fmt.Appendf(buf, "%s%s: %s\n",
-				indent,
-				colorize(keyColor, a.Key),
-				colorize(valColor, val))
-		} else {
-			buf = fmt.Appendf(buf, " %s=%s",
-				colorize(keyColor, a.Key),
-				colorize(valColor, val))
+		buf = appendbuf(buf, keyColor, valColor, a.Key, val)
+	case slog.KindBool:
+		val := a.Value.Bool()
+		boolColor := lightRed
+		if val {
+			boolColor = lightGreen
 		}
+		buf = appendbuf(buf, keyColor, boolColor, a.Key, a.Value.String())
 	case slog.KindGroup:
 		attrs := a.Value.Group()
 		if len(attrs) == 0 {
