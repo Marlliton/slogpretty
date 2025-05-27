@@ -1,321 +1,41 @@
 package main
 
 import (
-	"context"
-	"fmt"
-	"io"
 	"log/slog"
 	"os"
-	"path/filepath"
-	"runtime"
-	"strconv"
-	"strings"
-	"sync"
+
+	"github.com/Marlliton/slogstyler/pkg/colorhandler"
 )
-
-const (
-	timeFormat = "2006-01-02 15:04:05.000"
-)
-const (
-	reset = "\033[0m"
-
-	black        = 30
-	red          = 31
-	green        = 32
-	yellow       = 33
-	blue         = 34
-	magenta      = 35
-	cyan         = 36
-	lightGray    = 37
-	darkGray     = 90
-	lightRed     = 91
-	lightGreen   = 92
-	lightYellow  = 93
-	lightBlue    = 94
-	lightMagenta = 95
-	lightCyan    = 96
-	white        = 97
-)
-
-func colorize(colorCode int, v string) string {
-	return fmt.Sprintf("\033[%sm%s%s", strconv.Itoa(colorCode), v, reset)
-}
-
-type Options struct {
-	Level      slog.Level
-	AddSource  bool
-	Colorful   bool
-	Multiline  bool
-	TimeFormat string
-}
-
-type ColorTextHandler struct {
-	opts Options
-	out  io.Writer
-	mu   *sync.Mutex
-}
-
-func (h *ColorTextHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	return level >= h.opts.Level.Level()
-}
-
-func (h *ColorTextHandler) Handle(ctx context.Context, r slog.Record) error {
-	buf := make([]byte, 0, 1024)
-
-	// Timestamp
-	if !r.Time.IsZero() {
-		timeStr := r.Time.Format(h.opts.TimeFormat)
-		if h.opts.Colorful {
-			timeStr = colorize(lightGray, timeStr)
-		}
-		buf = fmt.Appendf(buf, "%s ", timeStr)
-	}
-
-	// Level
-	levelStr := h.setColorLevel(r.Level)
-	buf = fmt.Appendf(buf, "%-7s", levelStr)
-
-	// Message
-	msg := r.Message
-	msg = colorize(white, msg)
-	buf = fmt.Appendf(buf, " %s", msg)
-
-	// Source location
-	if h.opts.AddSource && r.PC != 0 {
-		fs := runtime.CallersFrames([]uintptr{r.PC})
-		f, _ := fs.Next()
-		file := filepath.Base(f.File)
-		source := fmt.Sprintf("source: %s:%d", file, f.Line)
-		if h.opts.Colorful {
-			source = colorize(darkGray, source)
-		}
-		buf = fmt.Appendf(buf, " %s", source)
-	}
-
-	// Attributes
-	if h.opts.Multiline {
-		buf = h.appendMultilineAttrs(buf, r)
-
-	} else {
-		buf = h.appendInLineAttrs(buf, r)
-	}
-
-	buf = append(buf, '\n')
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	_, err := h.out.Write(buf)
-	return err
-}
-
-func (h *ColorTextHandler) appendMultilineAttrs(buf []byte, r slog.Record) []byte {
-	attrCount := 0
-	r.Attrs(func(a slog.Attr) bool {
-		attrCount++
-		return true
-	})
-
-	if attrCount == 0 {
-		return buf
-	}
-
-	buf = append(buf, '\n')
-
-	r.Attrs(func(a slog.Attr) bool {
-		buf = h.appendAttr(buf, a, true, 1)
-		return true
-	})
-
-	return buf
-}
-
-func (h *ColorTextHandler) appendInLineAttrs(buf []byte, r slog.Record) []byte {
-	r.Attrs(func(a slog.Attr) bool {
-		buf = h.appendAttr(buf, a, false, 0)
-		return true
-	})
-
-	return buf
-}
-
-func (h *ColorTextHandler) appendAttr(buf []byte, a slog.Attr, multiline bool, level int) []byte {
-	// Identation
-	indent := strings.Repeat(" ", 2*level)
-
-	a.Value = a.Value.Resolve()
-	if a.Equal(slog.Attr{}) {
-		return buf
-	}
-
-	keyColor := lightMagenta
-	valColor := lightBlue
-
-	if !h.opts.Colorful {
-		keyColor = 0
-		valColor = 0
-	}
-
-	switch a.Value.Kind() {
-	case slog.KindString:
-		val := a.Value.String()
-		if multiline {
-			buf = fmt.Appendf(buf, "%s%s: %s\n",
-				indent,
-				colorize(keyColor, a.Key),
-				colorize(valColor, val))
-		} else {
-			buf = fmt.Appendf(buf, " %s=%s",
-				colorize(keyColor, a.Key),
-				colorize(valColor, fmt.Sprintf("%q", val)))
-		}
-	case slog.KindTime:
-		val := a.Value.Time().Format(h.opts.TimeFormat)
-		if multiline {
-			buf = fmt.Appendf(buf, "%s%s: %s\n",
-				indent,
-				colorize(keyColor, a.Key),
-				colorize(valColor, val))
-		} else {
-			buf = fmt.Appendf(buf, " %s=%s",
-				colorize(keyColor, a.Key),
-				colorize(valColor, fmt.Sprintf("%q", val)))
-		}
-	case slog.KindInt64, slog.KindUint64, slog.KindFloat64, slog.KindBool:
-		val := a.Value.String()
-		if multiline {
-			buf = fmt.Appendf(buf, "%s%s: %s\n",
-				indent,
-				colorize(keyColor, a.Key),
-				colorize(valColor, val))
-		} else {
-			buf = fmt.Appendf(buf, " %s=%s",
-				colorize(keyColor, a.Key),
-				colorize(valColor, val))
-		}
-	case slog.KindDuration:
-		val := a.Value.String()
-		if multiline {
-			buf = fmt.Appendf(buf, "%s%s: %s\n",
-				indent,
-				colorize(keyColor, a.Key),
-				colorize(valColor, val))
-		} else {
-			buf = fmt.Appendf(buf, " %s=%s",
-				colorize(keyColor, a.Key),
-				colorize(valColor, val))
-		}
-	case slog.KindGroup:
-		attrs := a.Value.Group()
-		if len(attrs) == 0 {
-			return buf
-		}
-
-		// if a.Key != "" {
-		// 	buf = fmt.Appendf(buf, " %s:", colorize(keyColor, a.Key))
-		// }
-		if multiline {
-			buf = fmt.Appendf(buf, "%s%s:\n", indent, colorize(keyColor, a.Key))
-			for _, ga := range attrs {
-				buf = h.appendAttr(buf, ga, multiline, 2)
-			}
-		} else {
-			buf = fmt.Appendf(buf, " %s:", colorize(keyColor, a.Key))
-			for _, ga := range attrs {
-				buf = h.appendAttr(buf, ga, multiline, 2)
-			}
-		}
-	default:
-		if multiline {
-			buf = fmt.Appendf(buf, "%s%s: %s\n",
-				indent,
-				colorize(keyColor, a.Key),
-				colorize(valColor, a.Value.String()))
-		} else {
-			buf = fmt.Appendf(buf, " %s=%s",
-				colorize(keyColor, a.Key),
-				colorize(valColor, a.Value.String()))
-		}
-	}
-
-	return buf
-}
-
-func (h *ColorTextHandler) setColorLevel(level slog.Level) string {
-	switch level {
-	case slog.LevelDebug:
-		return colorize(lightMagenta, "DEBUG")
-	case slog.LevelInfo:
-		return colorize(lightCyan, "INFO")
-	case slog.LevelWarn:
-		return colorize(lightYellow, "WARN")
-	case slog.LevelError:
-		return colorize(lightRed, "ERROR")
-	default:
-		return level.String()
-	}
-}
-
-func New(out io.Writer, opts *Options) *ColorTextHandler {
-	if opts == nil {
-		opts = &Options{
-			Level:    slog.LevelInfo,
-			Colorful: true,
-		}
-	}
-	if opts.TimeFormat == "" {
-		opts.TimeFormat = timeFormat
-	}
-
-	h := &ColorTextHandler{
-		out:  out,
-		mu:   &sync.Mutex{},
-		opts: *opts,
-	}
-	return h
-}
-
-func (h *ColorTextHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	// Implementação simplificada - retorna o mesmo handler
-	return h
-}
-
-func (h *ColorTextHandler) WithGroup(name string) slog.Handler {
-	// Implementação simplificada - retorna o mesmo handler
-	return h
-}
 
 func main() {
-	// Configuração do logger padrão
-	h := New(os.Stdout, &Options{
-		Level:     slog.LevelDebug,
-		AddSource: true,
-		Colorful:  true,
-		Multiline: true,
+	handler := colorhandler.New(os.Stdout, &colorhandler.Options{
+		Level:      slog.LevelDebug,
+		AddSource:  true,                           // Show source file location
+		Colorful:   true,                           // Enable colors
+		Multiline:  true,                           // Pretty-print complex data
+		TimeFormat: colorhandler.DefaultTimeFormat, // Custom time format time.Kitchen
 	})
-	slog.SetDefault(slog.New(h))
+	slog.SetDefault(slog.New(handler))
 
-	// Exemplos de logs
-	slog.Info("Iniciando aplicação", "version", "1.0.0", "env", "development")
-	slog.Info("Evento com grupo",
+	slog.Info("Evento com grupo e subgrupos",
 		"user", "bob",
-		slog.Group( // grupo aninhado
-			"details",
+		slog.Group("details",
 			slog.Int("port", 8080),
 			slog.String("status", "inactive"),
+			slog.Group("metrics",
+				slog.Float64("cpu", 72.5),
+				slog.Float64("memory", 65.3),
+			),
+			slog.Group("location",
+				slog.String("country", "Brazil"),
+				slog.String("region", "SP"),
+				slog.Group("coordinates",
+					slog.Float64("lat", -23.5505),
+					slog.Float64("lon", -46.6333),
+				),
+			),
 		),
-		"teste", "outro",
+		"session", "0x93AF21",
+		"authenticated", false,
 	)
-	// slog.Debug("Configuração carregada", "config", map[string]interface{}{
-	// 	"timeout":  "30s",
-	// 	"retries":  3,
-	// 	"features": []string{"auth", "storage"},
-	// })
-	// slog.Warn("Atenção: modo de desenvolvimento ativado")
-	//
-	// err := fmt.Errorf("erro de conexão")
-	// slog.Error("Falha ao conectar ao banco de dados",
-	// 	"error", err,
-	// 	"attempt", 3,
-	// 	"backoff", time.Second*2)
-	//
-	// slog.Info("Encerrando aplicação", "uptime", time.Minute*5)
 }
