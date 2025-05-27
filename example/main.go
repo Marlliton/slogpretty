@@ -4,16 +4,16 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/Marlliton/slogstyler"
+	"github.com/Marlliton/slogpretty"
 )
 
 func main() {
-	handler := slogstyler.New(os.Stdout, &slogstyler.Options{
+	handler := slogpretty.New(os.Stdout, &slogpretty.Options{
 		Level:      slog.LevelDebug,
 		AddSource:  true,                         // Show source file location
 		Colorful:   true,                         // Enable colors
 		Multiline:  true,                         // Pretty-print complex data
-		TimeFormat: slogstyler.DefaultTimeFormat, // Custom time format time.Kitchen
+		TimeFormat: slogpretty.DefaultTimeFormat, // Custom time format time.Kitchen
 	})
 	l := slog.New(handler)
 	slog.SetDefault(l)

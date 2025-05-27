@@ -1,4 +1,4 @@
-package slogstyler
+package slogpretty
 
 import "log/slog"
 

@@ -11,12 +11,11 @@ A customizable and colorful [slog](https://pkg.go.dev/log/slog) handler for Go �
 - 📂 **Smart source tracking** (file:line)
 - 🪄 **Multiline mode** for complex data
 - ⏱️ **Custom timestamp formatting**
-- 🎨 **Color toggle** for non-TTY outputs
 
 ## Installation
 
 ```bash
-go get github.com/Marlliton/slogstyler
+go get github.com/Marlliton/slogpretty
 ```
 
 ## Basic Usage
@@ -30,12 +29,12 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/Marlliton/slogstyler"
+	"github.com/Marlliton/slogpretty"
 )
 
 func main() {
 	// Minimal setup
-	handler := slogstyler.New(os.Stdout, nil)
+	handler := slogpretty.New(os.Stdout, nil)
 	slog.SetDefault(slog.New(handler))
 
 	slog.Info("Server started", "port", 8080)
@@ -49,12 +48,12 @@ func main() {
 You can configure the handler using the Options struct:
 
 ```go
-handler := slogstyler.New(os.Stdout, &slogstyler.Options{
+handler := slogpretty.New(os.Stdout, &slogpretty.Options{
 	Level:      slog.LevelDebug,
 	AddSource:  true,                           // Show source file location
 	Colorful:   true,                           // Enable colors
 	Multiline:  true,                           // Pretty-print complex data
-	TimeFormat: slogstyler.DefaultTimeFormat, // Custom time format time.Kitchen
+	TimeFormat: slogpretty.DefaultTimeFormat, // Custom time format time.Kitchen
 })
 ```
 
