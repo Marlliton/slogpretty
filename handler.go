@@ -164,7 +164,7 @@ func (h *SlogPretty) appendMultilineAttrs(buf []byte, r slog.Record) []byte {
 		return buf
 	}
 
-	buf = append(buf, '\n')
+	// buf = append(buf, '\n')
 
 	r.Attrs(func(a slog.Attr) bool {
 		buf = h.appendAttr(buf, a, true, 1)
@@ -282,7 +282,7 @@ func (h *SlogPretty) setColorLevel(level slog.Level) string {
 	case slog.LevelWarn:
 		return colorize(lightYellow, "WARN")
 	case slog.LevelError:
-		return colorize(lightRed, "ERROR")
+		return colorize(red, "ERROR")
 	default:
 		return level.String()
 	}
