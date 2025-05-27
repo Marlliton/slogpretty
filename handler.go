@@ -164,7 +164,9 @@ func (h *SlogPretty) appendMultilineAttrs(buf []byte, r slog.Record) []byte {
 		return buf
 	}
 
-	// buf = append(buf, '\n')
+	if len(h.goas) == 0 {
+		buf = append(buf, '\n')
+	}
 
 	r.Attrs(func(a slog.Attr) bool {
 		buf = h.appendAttr(buf, a, true, 1)
