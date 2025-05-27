@@ -4,18 +4,19 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/Marlliton/slogstyler/pkg/colorhandler"
+	"github.com/Marlliton/slogstyler"
 )
 
 func main() {
-	handler := colorhandler.New(os.Stdout, &colorhandler.Options{
+	handler := slogstyler.New(os.Stdout, &slogstyler.Options{
 		Level:      slog.LevelDebug,
-		AddSource:  true,                           // Show source file location
-		Colorful:   true,                           // Enable colors
-		Multiline:  true,                           // Pretty-print complex data
-		TimeFormat: colorhandler.DefaultTimeFormat, // Custom time format time.Kitchen
+		AddSource:  true,                         // Show source file location
+		Colorful:   true,                         // Enable colors
+		Multiline:  true,                         // Pretty-print complex data
+		TimeFormat: slogstyler.DefaultTimeFormat, // Custom time format time.Kitchen
 	})
-	slog.SetDefault(slog.New(handler))
+	l := slog.New(handler)
+	slog.SetDefault(l)
 
 	slog.Info("Evento com grupo e subgrupos",
 		"user", "bob",

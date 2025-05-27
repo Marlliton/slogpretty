@@ -1,4 +1,4 @@
-package colorhandler
+package slogstyler
 
 import (
 	"fmt"

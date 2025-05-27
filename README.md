@@ -16,8 +16,9 @@ A customizable and colorful [slog](https://pkg.go.dev/log/slog) handler for Go �
 ## Installation
 
 ```bash
-go get github.com/Marlliton/slogstyler/pkg/colorhandler
+go get github.com/Marlliton/slogstyler
 ```
+
 ## Basic Usage
 
 Set up slog-pretty as your default handler:
@@ -29,41 +30,45 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/marlliton/slog-pretty"
+	"github.com/Marlliton/slogstyler"
 )
 
 func main() {
 	// Minimal setup
-	handler := colorhandler.New(os.Stdout, nil)
+	handler := slogstyler.New(os.Stdout, nil)
 	slog.SetDefault(slog.New(handler))
 
 	slog.Info("Server started", "port", 8080)
 }
 ```
+
 ![minimal setup](./assets/2.png)
 
 ## Advanced Configuration
 
 You can configure the handler using the Options struct:
+
 ```go
-handler := colorhandler.New(os.Stdout, &colorhandler.Options{
+handler := slogstyler.New(os.Stdout, &slogstyler.Options{
 	Level:      slog.LevelDebug,
 	AddSource:  true,                           // Show source file location
 	Colorful:   true,                           // Enable colors
 	Multiline:  true,                           // Pretty-print complex data
-	TimeFormat: colorhandler.DefaultTimeFormat, // Custom time format time.Kitchen
+	TimeFormat: slogstyler.DefaultTimeFormat, // Custom time format time.Kitchen
 })
 ```
+
 ![minimal setup](./assets/3.png)
 
 ## Feature Showcase
+
 1. Color-coded Levels
 
-	Each log level has distinct coloring:
+   Each log level has distinct coloring:
 
 2. Structured Attributes
 
-	Clean attribute formatting:
+   Clean attribute formatting:
 
 ```go
 	slog.Debug("Debugging data")
@@ -72,11 +77,12 @@ handler := colorhandler.New(os.Stdout, &colorhandler.Options{
 	slog.Error("Operation failed")
 	slog.Info("User logged in", "user_id", 1234, "email", "user@example.com", "active", true)
 ```
+
 ![minimal setup](./assets/5.png)
 
 3. Multiline Complex Data
 
-	Beautiful nested structures:
+   Beautiful nested structures:
 
 ```go
 	slog.Info("Evento com grupo e subgrupos",
@@ -101,6 +107,7 @@ handler := colorhandler.New(os.Stdout, &colorhandler.Options{
 		"authenticated", false,
 	)
 ```
+
 ![minimal setup](./assets/6.png)
 
 ## 💡 Best Practices
@@ -120,10 +127,10 @@ In development environments, it’s recommended to enable as many features as po
 
 These options enable:
 
-* **Detailed logs (`LevelDebug`)**
-* **Log origin tracking (`AddSource`)**
-* **Colorful output for better terminal visibility (`Colorful`)**
-* **Structured multi-line formatting (`Multiline`)**
+- **Detailed logs (`LevelDebug`)**
+- **Log origin tracking (`AddSource`)**
+- **Colorful output for better terminal visibility (`Colorful`)**
+- **Structured multi-line formatting (`Multiline`)**
 
 ---
 
@@ -162,7 +169,7 @@ slog.Info("Event with groups and subgroups",
 
 #### ✅ Why use JSON in production?
 
-* **Compatible with observability tools** (e.g., Datadog, ELK, Loki, Grafana)
-* **Machine-readable format** — makes parsing, searching, and aggregating easier
-* **Standardized structure** — ideal for distributed systems and centralized logging
-* **Efficient** — avoids unnecessary visual formatting overhead
+- **Compatible with observability tools** (e.g., Datadog, ELK, Loki, Grafana)
+- **Machine-readable format** — makes parsing, searching, and aggregating easier
+- **Standardized structure** — ideal for distributed systems and centralized logging
+- **Efficient** — avoids unnecessary visual formatting overhead
