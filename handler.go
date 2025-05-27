@@ -134,7 +134,11 @@ func (h *SlogPretty) removeEmptyGroup(r slog.Record) {
 func (h *SlogPretty) appendMultilineGroupOrAttrs(buf []byte, level int) []byte {
 	for _, goa := range h.goas {
 		if goa.group != "" {
-			buf = fmt.Appendf(buf, "%s%s:", strings.Repeat("  ", level), colorize(magenta, goa.group))
+			groupColor := magenta
+			if !h.opts.Colorful {
+				groupColor = 0
+			}
+			buf = fmt.Appendf(buf, "%s%s:", strings.Repeat("  ", level), colorize(groupColor, goa.group))
 			level++
 		} else {
 			if len(goa.attrs) > 0 {
@@ -240,6 +244,9 @@ func (h *SlogPretty) appendAttr(buf []byte, a slog.Attr, multiline bool, level i
 		boolColor := lightRed
 		if val {
 			boolColor = lightGreen
+		}
+		if !h.opts.Colorful {
+			boolColor = 0
 		}
 		buf = appendbuf(buf, keyColor, boolColor, a.Key, a.Value.String())
 	case slog.KindGroup:
