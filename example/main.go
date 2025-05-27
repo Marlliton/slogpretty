@@ -10,6 +10,7 @@ import (
 func main() {
 	handler := slogpretty.New(os.Stdout, &slogpretty.Options{
 		Level:      slog.LevelDebug,
+		Colorful:   true, // Enable colors
 		AddSource:  true,
 		Multiline:  true,                         // Pretty-print complex data
 		TimeFormat: slogpretty.DefaultTimeFormat, // Custom time format time.Kitchen

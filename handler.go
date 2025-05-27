@@ -267,16 +267,7 @@ func (h *SlogPretty) appendAttr(buf []byte, a slog.Attr, multiline bool, level i
 			}
 		}
 	default:
-		if multiline {
-			buf = fmt.Appendf(buf, "%s%s: %s\n",
-				indent,
-				colorize(keyColor, a.Key),
-				colorize(valColor, a.Value.String()))
-		} else {
-			buf = fmt.Appendf(buf, " %s=%s",
-				colorize(keyColor, a.Key),
-				colorize(valColor, a.Value.String()))
-		}
+		buf = appendbuf(buf, keyColor, valColor, a.Key, a.Value.String())
 	}
 
 	return buf
