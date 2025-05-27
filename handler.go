@@ -11,6 +11,7 @@ import (
 	"sync"
 )
 
+// ==================== Types ====================
 type groupOrAttrs struct {
 	group string
 	attrs []slog.Attr
@@ -23,6 +24,24 @@ type SlogPretty struct {
 	mu   *sync.Mutex
 }
 
+// ==================== Initialization ====================
+func New(out io.Writer, opts *Options) *SlogPretty {
+	if opts == nil {
+		opts = DefaultOptions()
+	}
+	if opts.TimeFormat == "" {
+		opts.TimeFormat = DefaultTimeFormat
+	}
+
+	h := &SlogPretty{
+		out:  out,
+		mu:   &sync.Mutex{},
+		opts: *opts,
+	}
+	return h
+}
+
+// ==================== Handler Interface Methods ====================
 func (h *SlogPretty) Enabled(ctx context.Context, level slog.Level) bool {
 	return level >= h.opts.Level.Level()
 }
@@ -30,6 +49,39 @@ func (h *SlogPretty) Enabled(ctx context.Context, level slog.Level) bool {
 func (h *SlogPretty) Handle(ctx context.Context, r slog.Record) error {
 	buf := make([]byte, 0, 1024)
 
+	buf = h.appendHeader(buf, r)
+	h.removeEmptyGroup(r)
+	if h.opts.Multiline {
+		buf = h.appendMultilineGroupOrAttrs(buf, 1)
+		buf = h.appendMultilineAttrs(buf, r)
+	} else {
+		buf = h.appendInLineAttrs(buf, r)
+	}
+
+	buf = append(buf, '\n')
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	_, err := h.out.Write(buf)
+	return err
+}
+
+func (h *SlogPretty) WithAttrs(attrs []slog.Attr) slog.Handler {
+	if len(attrs) == 0 {
+		return h
+	}
+
+	return h.withGroupOrAttrs(groupOrAttrs{attrs: attrs})
+}
+
+func (h *SlogPretty) WithGroup(name string) slog.Handler {
+	if name == "" {
+		return h
+	}
+	return h.withGroupOrAttrs(groupOrAttrs{group: name})
+}
+
+// ==================== Helper Methods ====================
+func (h *SlogPretty) appendHeader(buf []byte, r slog.Record) []byte {
 	// Timestamp
 	if !r.Time.IsZero() {
 		timeStr := r.Time.Format(h.opts.TimeFormat)
@@ -59,59 +111,7 @@ func (h *SlogPretty) Handle(ctx context.Context, r slog.Record) error {
 		}
 		buf = fmt.Appendf(buf, " %s", source)
 	}
-
-	h.removeEmptyGroup(r)
-	if h.opts.Multiline {
-		buf = append(buf, '\n')
-		buf = h.appendMultilineGroupOrAttrs(buf, 1)
-		buf = h.appendMultilineAttrs(buf, r)
-	} else {
-		buf = h.appendInLineAttrs(buf, r)
-	}
-
-	// Attributes
-	// if h.opts.Multiline {
-	// 	buf = h.appendMultilineAttrs(buf, r)
-	//
-	// } else {
-	// 	buf = h.appendInLineAttrs(buf, r)
-	// }
-
-	buf = append(buf, '\n')
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	_, err := h.out.Write(buf)
-	return err
-}
-
-func New(out io.Writer, opts *Options) *SlogPretty {
-	if opts == nil {
-		opts = DefaultOptions()
-	}
-	if opts.TimeFormat == "" {
-		opts.TimeFormat = DefaultTimeFormat
-	}
-
-	h := &SlogPretty{
-		out:  out,
-		mu:   &sync.Mutex{},
-		opts: *opts,
-	}
-	return h
-}
-
-func (h *SlogPretty) WithAttrs(attrs []slog.Attr) slog.Handler {
-	if len(attrs) == 0 {
-		return h
-	}
-	return h.withGroupOrAttrs(groupOrAttrs{attrs: attrs})
-}
-
-func (h *SlogPretty) WithGroup(name string) slog.Handler {
-	if name == "" {
-		return h
-	}
-	return h.withGroupOrAttrs(groupOrAttrs{group: name})
+	return buf
 }
 
 func (h *SlogPretty) withGroupOrAttrs(goa groupOrAttrs) *SlogPretty {
@@ -134,9 +134,12 @@ func (h *SlogPretty) removeEmptyGroup(r slog.Record) {
 func (h *SlogPretty) appendMultilineGroupOrAttrs(buf []byte, level int) []byte {
 	for _, goa := range h.goas {
 		if goa.group != "" {
-			buf = fmt.Appendf(buf, "%s%s:\n", strings.Repeat("  ", level), colorize(lightGreen, goa.group))
+			buf = fmt.Appendf(buf, "%s%s:", strings.Repeat("  ", level), colorize(magenta, goa.group))
 			level++
 		} else {
+			if len(goa.attrs) > 0 {
+				buf = append(buf, '\n')
+			}
 			for _, a := range goa.attrs {
 				buf = h.appendAttr(buf, a, true, level)
 			}
