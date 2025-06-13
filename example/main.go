@@ -10,33 +10,15 @@ import (
 func main() {
 	handler := slogpretty.New(os.Stdout, &slogpretty.Options{
 		Level:      slog.LevelDebug,
-		Colorful:   true, // Enable colors
+		Colorful:   true,
 		AddSource:  true,
-		Multiline:  true,                         // Pretty-print complex data
-		TimeFormat: slogpretty.DefaultTimeFormat, // Custom time format time.Kitchen
+		Multiline:  true,
+		TimeFormat: slogpretty.DefaultTimeFormat,
 	})
 	l := slog.New(handler)
 	slog.SetDefault(l)
 
-	logger := slog.New(handler).
-		With("request_id", "abc123").
-		WithGroup("user").
-		With("id", "bob", "authenticated", true).
-		WithGroup("data_table").
-		With("hash", "jhs134", "valid", false)
-
-	logger.Error("Ação do usuário", "action", "login", "teste", "testando",
-		slog.Group("location",
-			slog.String("country", "Brazil"),
-			slog.String("region", "SP"),
-			slog.Group("coordinates",
-				slog.Float64("lat", -23.5505),
-				slog.Float64("lon", -46.6333),
-			),
-		),
-	)
-
-	slog.Info("Evento com grupo e subgrupos",
+	slog.Info("Event with group and subgroups",
 		"user", "bob",
 		slog.Group("details",
 			slog.Int("port", 8080),
@@ -57,5 +39,4 @@ func main() {
 		"session", "0x93AF21",
 		"authenticated", false,
 	)
-
 }

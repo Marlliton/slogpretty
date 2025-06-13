@@ -1,26 +1,26 @@
 # slog-pretty ✨
 
-A customizable and colorful [slog](https://pkg.go.dev/log/slog) handler for Go — designed for structured, readable, and pretty terminal output.
+Um handler personalizável e colorido para o [slog](https://pkg.go.dev/log/slog) handler em Go — projetado para saída estruturada, legível e bonita no terminal.
 
 ![demo banner](./assets/1.png)
 
-## Features
+## Funcionalidades
 
-- 🌈 **Color-coded log levels** (DEBUG, INFO, WARN, ERROR)
-- 📝 **Structured attributes** with pretty formatting
-- 📂 **Smart source tracking** (file:line)
-- 🪄 **Multiline mode** for complex data
-- ⏱️ **Custom timestamp formatting**
+- 🌈 **Níveis de log com cores** (DEBUG, INFO, WARN, ERROR)
+- 📝 **Atributos estruturados** com formatação
+- 📂 **Rastreamento inteligente da origem** (arquivo:linha)
+- 🪄 **Modo multilinha** para dados complexos
+- ⏱️ **Formatação personalidada de timestamp**
 
-## Installation
+## Instalação
 
 ```bash
 go get github.com/Marlliton/slogpretty
 ```
 
-## Basic Usage
+## Uso Básico
 
-Set up slog-pretty as your default handler:
+Configure o slogpretty como handler padrão:
 
 ```go
 package main
@@ -43,31 +43,31 @@ func main() {
 
 ![minimal setup](./assets/2.png)
 
-## Advanced Configuration
+## Configurações Avançadas
 
-You can configure the handler using the Options struct:
+Você pode configurar o handler usando a struct `Options`:
 
 ```go
 handler := slogpretty.New(os.Stdout, &slogpretty.Options{
 	Level:      slog.LevelDebug,
-	AddSource:  true,                           // Show source file location
-	Colorful:   true,                           // Enable colors
-	Multiline:  true,                           // Pretty-print complex data
-	TimeFormat: slogpretty.DefaultTimeFormat, // Custom time format time.Kitchen
+	AddSource:  true,                            // Mostrar localização do arquivo
+	Colorful:   true,                            // Habilitar cores. Valor padrão (true)
+	Multiline:  true,                            // Impressão bonita para dados complexos
+	TimeFormat: slogpretty.DefaultTimeFormat,    // Formato personalizado (ex: time.Kitchen)
 })
 ```
 
-![minimal setup](./assets/3.png)
+![minimal setup](./assets/3.1.png)
 
-## Feature Showcase
+## Funcionalidades
 
-1. Color-coded Levels
+1. Níveis coloridos
 
-   Each log level has distinct coloring:
+   Cada nível de log tem uma cor distinta
 
-2. Structured Attributes
+2. Atributos estruturados
 
-   Clean attribute formatting:
+   Formatação limpa dos atributos
 
 ```go
 	slog.Debug("Debugging data")
@@ -79,9 +79,7 @@ handler := slogpretty.New(os.Stdout, &slogpretty.Options{
 
 ![minimal setup](./assets/5.png)
 
-3. Multiline Complex Data
-
-   Beautiful nested structures:
+3. Dados Complexos em Multiplas linhas
 
 ```go
 	slog.Info("Evento com grupo e subgrupos",
@@ -109,11 +107,11 @@ handler := slogpretty.New(os.Stdout, &slogpretty.Options{
 
 ![minimal setup](./assets/6.png)
 
-## 💡 Best Practices
+## 💡 Boas práticas
 
-### 🛠 Development: Enable as many features as you want
+### 🛠 Desenvolvimento: Habilite quantos recursos desejar
 
-In development environments, it’s recommended to enable as many features as possible to improve log readability, debugging, and traceability:
+Em ambientes de desenvolvimento, é recomendável ativar o máximo de recursos possível para melhorar a leitura, depuração e rastreabilidade dos logs:
 
 ```go
 &pretty.Options{
@@ -124,18 +122,18 @@ In development environments, it’s recommended to enable as many features as po
 }
 ```
 
-These options enable:
+Essas opções permitem:
 
-- **Detailed logs (`LevelDebug`)**
-- **Log origin tracking (`AddSource`)**
-- **Colorful output for better terminal visibility (`Colorful`)**
-- **Structured multi-line formatting (`Multiline`)**
+- **Logs a partir do nível de debug (`LevelDebug`)**
+- **Rastreamento de origem (`AddSource`)**
+- **Saída colorida para melhor visibilidade no terminal (`Colorful`)**
+- **Formatação estruturada em várias linhas (`Multiline`)**
 
 ---
 
-### 🚀 Production: Use `slog`'s built-in `JSONHandler`
+### 🚀 Produção: Use o `JSONHandler` nativo do `slog`
 
-For production, it’s best to use `slog.NewJSONHandler`, which outputs logs in **structured JSON format**:
+Para produção, é melhor usar o `slog.NewJSONHandler`, que gera logs em **formato JSON**:
 
 ```go
 JSONhandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -166,9 +164,9 @@ slog.Info("Event with groups and subgroups",
 )
 ```
 
-#### ✅ Why use JSON in production?
+#### ✅ Por que usar JSON em produção?
 
-- **Compatible with observability tools** (e.g., Datadog, ELK, Loki, Grafana)
-- **Machine-readable format** — makes parsing, searching, and aggregating easier
-- **Standardized structure** — ideal for distributed systems and centralized logging
-- **Efficient** — avoids unnecessary visual formatting overhead
+- **Compatível com ferramentas de observabilidade** (ex: Datadog, Loki, Grafana)
+- **Formato altamente aceito** — facilita análise, busca etc.
+- **Estrutura padronizada** — ideal para sistemas distribuídos e logs centralizados
+- **Eficiente** — evita sobrecarga com formatação visual desnecessária
