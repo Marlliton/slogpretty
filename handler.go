@@ -138,7 +138,12 @@ func (h *SlogPretty) appendMultilineGroupOrAttrs(buf []byte, level int) []byte {
 			if !h.opts.Colorful {
 				groupColor = 0
 			}
-			buf = fmt.Appendf(buf, "%s%s:", strings.Repeat("  ", level), colorize(groupColor, goa.group))
+			buf = fmt.Appendf(
+				buf,
+				"%s%s:",
+				strings.Repeat("  ", level),
+				colorize(groupColor, goa.group),
+			)
 			level++
 		} else {
 			if len(goa.attrs) > 0 {
