@@ -1,4 +1,4 @@
-# slog-pretty ✨
+# slogpretty ✨
 
 Um handler personalizável e colorido para o [slog](https://pkg.go.dev/log/slog) handler em Go — projetado para saída estruturada, legível e bonita no terminal.
 
